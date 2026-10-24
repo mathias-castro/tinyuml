@@ -46,11 +46,16 @@ import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import org.tinyuml.draw.AbstractCompositeNode;
 import org.tinyuml.draw.Label;
 import org.tinyuml.draw.DiagramElement;
 import org.tinyuml.draw.LabelChangeListener;
 import org.tinyuml.model.UmlModel;
 import org.tinyuml.util.AppCommandListener;
+import org.tinyuml.umldraw.shared.NoteElement;
+import org.tinyuml.umldraw.structure.ClassElement;
+import org.tinyuml.umldraw.structure.ComponentElement;
+import org.tinyuml.umldraw.structure.PackageElement;
 import org.tinyuml.umldraw.structure.StructureDiagram;
 import org.tinyuml.model.UmlModelImpl;
 import org.tinyuml.ui.commands.ModelReader;
@@ -80,6 +85,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private JTabbedPane tabbedPane;
   private JLabel coordLabel = new JLabel("    ");
   private JLabel memLabel = new JLabel("    ");
+  private JLabel countLabel = new JLabel("    ");
   private UmlModel umlModel;
   private DiagramEditor currentEditor;
   private transient Timer timer = new Timer();
@@ -213,6 +219,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
                               label.getText());
       }
     });
+    updateElementCount(currentEditor);
   }
 
   /**
@@ -241,6 +248,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private void installStatusbar() {
     JPanel statusbar = new JPanel(new BorderLayout());
     statusbar.add(coordLabel, BorderLayout.WEST);
+    statusbar.add(countLabel, BorderLayout.CENTER);
     statusbar.add(memLabel, BorderLayout.EAST);
     getContentPane().add(statusbar, BorderLayout.SOUTH);
   }
@@ -303,11 +311,43 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
     menumanager.enableMenuItem("REDO", editor.canRedo());
     toolbarmanager.enableButton("UNDO", editor.canUndo());
     toolbarmanager.enableButton("REDO", editor.canRedo());
+    updateElementCount(editor);
   }
 
-  // ************************************************************************
-  // **** SelectionListener
-  // *****************************************
+  /**
+   * RF-001: Agregado contador de elementos a la barra inferior
+   * @param editor the editor
+   */
+  private void updateElementCount(DiagramEditor editor) {
+    int[] counts = new int[4]; // Package, Class, Component, Note
+    countElements(editor.getDiagram(), counts);
+    int total = counts[0] + counts[1] + counts[2] + counts[3];
+    countLabel.setText(String.format(
+      "Total Items: %02d | Package: %02d | Class: %02d | Component: %02d"
+      + " | Note: %02d", total, counts[0], counts[1], counts[2], counts[3]));
+  }
+
+  /**
+   * Contador de elementos
+   * @param parent the parent node
+   * @param counts the counters array
+   */
+  private void countElements(AbstractCompositeNode parent, int[] counts) {
+    for (DiagramElement element : parent.getChildren()) {
+      if (element instanceof PackageElement) {
+        counts[0]++;
+        countElements((PackageElement) element, counts);
+      } else if (element instanceof ClassElement) {
+        counts[1]++;
+      } else if (element instanceof ComponentElement) {
+        counts[2]++;
+      } else if (element instanceof NoteElement) {
+        counts[3]++;
+      }
+    }
+  }
+
+
 
   /**
    * {@inheritDoc}
@@ -629,7 +669,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
 	  if(hasSelection)
 	    lastCopiedElements = getCurrentEditor().getSelectedElements();
 
-	  //adicionalmente, hay que habilitar el botón PASTE!
+	  //adicionalmente, hay que habilitar el botï¿½n PASTE!
 	  menumanager.enableMenuItem("PASTE", hasSelection);
 	  toolbarmanager.enableButton("PASTE", hasSelection);
   }
