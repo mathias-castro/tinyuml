@@ -23,6 +23,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -33,6 +34,7 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -47,6 +49,7 @@ import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.tinyuml.draw.AbstractCompositeNode;
+import org.tinyuml.draw.Connection;
 import org.tinyuml.draw.Label;
 import org.tinyuml.draw.DiagramElement;
 import org.tinyuml.draw.LabelChangeListener;
@@ -86,6 +89,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private JLabel coordLabel = new JLabel("    ");
   private JLabel memLabel = new JLabel("    ");
   private JLabel countLabel = new JLabel("    ");
+  private JLabel selectionLabel = new JLabel("    ");
   private UmlModel umlModel;
   private DiagramEditor currentEditor;
   private transient Timer timer = new Timer();
@@ -220,6 +224,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
       }
     });
     updateElementCount(currentEditor);
+    updateSelectionInfo(currentEditor);
   }
 
   /**
@@ -248,7 +253,10 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private void installStatusbar() {
     JPanel statusbar = new JPanel(new BorderLayout());
     statusbar.add(coordLabel, BorderLayout.WEST);
-    statusbar.add(countLabel, BorderLayout.CENTER);
+    JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
+    infoPanel.add(countLabel);
+    infoPanel.add(selectionLabel);
+    statusbar.add(infoPanel, BorderLayout.CENTER);
     statusbar.add(memLabel, BorderLayout.EAST);
     getContentPane().add(statusbar, BorderLayout.SOUTH);
   }
@@ -312,6 +320,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
     toolbarmanager.enableButton("UNDO", editor.canUndo());
     toolbarmanager.enableButton("REDO", editor.canRedo());
     updateElementCount(editor);
+    updateSelectionInfo(editor);
   }
 
   /**
@@ -347,6 +356,45 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
     }
   }
 
+  /**
+   * RF-002: Seleccion de categoria
+   * @param editor the editor
+   */
+  private void updateSelectionInfo(DiagramEditor editor) {
+    List<DiagramElement> selected = editor.getSelectedElements();
+    // clicking on an empty area selects the diagram itself
+    if (selected.isEmpty() || selected.get(0) instanceof StructureDiagram) {
+      selectionLabel.setText("Sin selecci\u00f3n");
+    } else if (selected.size() > 1) {
+      selectionLabel.setText("Selecci\u00f3n m\u00faltiple: "
+        + selected.size() + " elementos");
+    } else {
+      DiagramElement element = selected.get(0);
+      String category = "";
+      String name = "";
+      if (element instanceof PackageElement) {
+        category = "Package";
+        name = ((PackageElement) element).getLabelText();
+      } else if (element instanceof ClassElement) {
+        category = "Class";
+        name = ((ClassElement) element).getLabelText();
+      } else if (element instanceof ComponentElement) {
+        category = "Component";
+        name = ((ComponentElement) element).getLabelText();
+      } else if (element instanceof NoteElement) {
+        category = "Note";
+        name = ((NoteElement) element).getLabelText();
+      } else if (element instanceof Connection) {
+        category = "Relation";
+      }
+      if (name == null) {
+        name = "";
+      }
+      selectionLabel.setText("Seleccionado: " + category + " - "
+        + name.replace('\n', ' '));
+    }
+  }
+
 
 
   /**
@@ -364,6 +412,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
     toolbarmanager.enableButton("COPY", hasSelection);
      
     toolbarmanager.enableButton("DELETE", hasSelection);
+    updateSelectionInfo(getCurrentEditor());
   }
 
   // ************************************************************************

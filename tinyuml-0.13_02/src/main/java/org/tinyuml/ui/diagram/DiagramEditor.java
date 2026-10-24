@@ -805,10 +805,11 @@ DiagramEditorNotification, DiagramOperations, NodeChangeListener {
    * {@inheritDoc}
    */
   public void notifyElementRemoved(DiagramElement element) {
+    // clear the selection first, so listeners see the updated state
+    selectionHandler.elementRemoved(element);
     for (EditorStateListener l : editorListeners) {
       l.elementRemoved(this);
     }
-    selectionHandler.elementRemoved(element);
     repaint();
   }
 
