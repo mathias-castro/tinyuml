@@ -47,4 +47,13 @@ public final class Scaling {
    * @return the scaling factor
    */
   public double getScaleFactor() { return scaleFactor; }
+
+  /**
+   * Creates a Scaling with an arbitrary factor (used by fit to window).
+   * @param aScaleFactor the scale factor
+   * @return the Scaling object
+   */
+  public static Scaling create(double aScaleFactor) {
+    return new Scaling(aScaleFactor);
+  }
 }

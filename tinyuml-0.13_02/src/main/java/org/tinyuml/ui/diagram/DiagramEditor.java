@@ -23,6 +23,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
@@ -32,6 +33,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Dimension2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.event.UndoableEditEvent;
 import javax.swing.event.UndoableEditListener;
@@ -99,6 +102,7 @@ DiagramEditorNotification, DiagramOperations, NodeChangeListener {
   private static final double MARGIN_LEFT = 25;
   private static final double MARGIN_RIGHT = 30;
   private static final double MARGIN_BOTTOM = 30;
+  private static final int FIT_MARGIN = 20;
   private transient DrawingContext drawingContext = new DrawingContextImpl();
   private transient EditorMode editorMode;
   private transient SelectionHandler selectionHandler;
@@ -205,9 +209,12 @@ DiagramEditorNotification, DiagramOperations, NodeChangeListener {
    * This also influences the scroll pane which the component is contained in.
    */
   private void setToDiagramSize() {
+    double factor = scaling.getScaleFactor();
     setPreferredSize(new Dimension(
-      (int) (diagram.getSize().getWidth() + MARGIN_RIGHT + MARGIN_LEFT),
-      (int) (diagram.getSize().getHeight() + MARGIN_BOTTOM + MARGIN_TOP)));
+      (int) ((diagram.getSize().getWidth() + MARGIN_RIGHT + MARGIN_LEFT)
+        * factor),
+      (int) ((diagram.getSize().getHeight() + MARGIN_BOTTOM + MARGIN_TOP)
+        * factor)));
     invalidate();
   }
 
@@ -348,6 +355,11 @@ DiagramEditorNotification, DiagramOperations, NodeChangeListener {
     if (toScreen) {
       // Scaling is only interesting if rendering to screen
       scaleDiagram(g2d);
+      // the clip bounds must be in diagram coordinates after scaling,
+      // otherwise elements are skipped when the zoom is not 100 %
+      if (g2d.getClipBounds() != null) {
+        bounds = g2d.getClipBounds();
+      }
     } else {
       diagram.setGridVisible(false);
       background = Color.WHITE;
@@ -601,7 +613,43 @@ DiagramEditorNotification, DiagramOperations, NodeChangeListener {
    */
   public void setScaling(Scaling aScaling) {
     scaling = aScaling;
+    setToDiagramSize();
+    revalidate();
     repaint();
+  }
+
+  /**
+   * RF-005: Adjusts the zoom and the visible area so that all the elements
+   * of the diagram can be seen in the window. Only the view changes, the
+   * position and size of the elements are not modified.
+   */
+  public void fitToWindow() {
+    Rectangle2D bounds = null;
+    for (DiagramElement element : diagram.getChildren()) {
+      if (bounds == null) {
+        bounds = element.getAbsoluteBounds().getBounds2D();
+      } else {
+        bounds.add(element.getAbsoluteBounds());
+      }
+    }
+    if (bounds == null || !(getParent() instanceof JViewport)) {
+      return;
+    }
+    JViewport viewport = (JViewport) getParent();
+    Dimension visible = viewport.getExtentSize();
+    double factor = Math.min(
+      (visible.getWidth() - 2 * FIT_MARGIN) / bounds.getWidth(),
+      (visible.getHeight() - 2 * FIT_MARGIN) / bounds.getHeight());
+    factor = Math.max(0.1, Math.min(factor, 2.0));
+    setScaling(Scaling.create(factor));
+    // lay out the scroll pane now, so the new size is known
+    viewport.getParent().validate();
+    int maxX = Math.max(0, getWidth() - visible.width);
+    int maxY = Math.max(0, getHeight() - visible.height);
+    int x = (int) (bounds.getX() * factor) - FIT_MARGIN;
+    int y = (int) (bounds.getY() * factor) - FIT_MARGIN;
+    viewport.setViewPosition(new Point(Math.max(0, Math.min(x, maxX)),
+      Math.max(0, Math.min(y, maxY))));
   }
 
   /**
