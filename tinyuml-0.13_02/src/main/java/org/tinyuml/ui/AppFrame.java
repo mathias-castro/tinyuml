@@ -90,6 +90,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private JLabel memLabel = new JLabel("    ");
   private JLabel countLabel = new JLabel("    ");
   private JLabel selectionLabel = new JLabel("    ");
+  private JLabel selectedCountLabel = new JLabel("    ");
   private UmlModel umlModel;
   private DiagramEditor currentEditor;
   private transient Timer timer = new Timer();
@@ -256,6 +257,7 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
     JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
     infoPanel.add(countLabel);
     infoPanel.add(selectionLabel);
+    infoPanel.add(selectedCountLabel);
     statusbar.add(infoPanel, BorderLayout.CENTER);
     statusbar.add(memLabel, BorderLayout.EAST);
     getContentPane().add(statusbar, BorderLayout.SOUTH);
@@ -363,7 +365,12 @@ implements EditorStateListener, AppCommandListener, SelectionListener {
   private void updateSelectionInfo(DiagramEditor editor) {
     List<DiagramElement> selected = editor.getSelectedElements();
     // clicking on an empty area selects the diagram itself
-    if (selected.isEmpty() || selected.get(0) instanceof StructureDiagram) {
+    boolean noSelection = selected.isEmpty()
+      || selected.get(0) instanceof StructureDiagram;
+    // RF-003:
+    selectedCountLabel.setText("Seleccionados: "
+      + (noSelection ? 0 : selected.size()));
+    if (noSelection) {
       selectionLabel.setText("Sin selecci\u00f3n");
     } else if (selected.size() > 1) {
       selectionLabel.setText("Selecci\u00f3n m\u00faltiple: "
